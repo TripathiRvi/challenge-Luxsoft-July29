@@ -48,17 +48,19 @@ public class AccountsService {
         final BigDecimal amount = transfer.getBalance();
 
         transferValidator.validate(accountFrom, accountTo, transfer);
+        synchronized (Transfer.class) {
+            boolean succeeded = accountsRepository.updateAccounts(Arrays.asList(
+                    new AccountUpdate(accountFrom.getAccountId(), amount.negate()),
+                    new AccountUpdate(accountTo.getAccountId(), amount)
+            ));
 
-        boolean succeeded = accountsRepository.updateAccounts(Arrays.asList(
-                new AccountUpdate(accountFrom.getAccountId(), amount.negate()),
-                new AccountUpdate(accountTo.getAccountId(), amount)
-                ));
 
-        if (succeeded){
-            notificationService.notifyAboutTransfer(accountFrom, "Transfer for AccountId "
-                    + accountTo.getAccountId() + " is done with balance of " + transfer.getBalance());
-            notificationService.notifyAboutTransfer(accountTo, "Transfer from AccountId + "
-                    + accountFrom.getAccountId() + "has done with balance of " + transfer.getBalance() + " in your account.");
+            if (succeeded) {
+                notificationService.notifyAboutTransfer(accountFrom, "Transfer for AccountId "
+                        + accountTo.getAccountId() + " is done with balance of " + transfer.getBalance());
+                notificationService.notifyAboutTransfer(accountTo, "Transfer from AccountId + "
+                        + accountFrom.getAccountId() + "has done with balance of " + transfer.getBalance() + " in your account.");
+            }
         }
     }
 
