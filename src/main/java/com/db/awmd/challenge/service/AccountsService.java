@@ -41,27 +41,51 @@ public class AccountsService {
         return this.accountsRepository.getAccount(accountId);
     }
 
+
     public void makeTransfer(Transfer transfer) throws AccountNotFoundException, NotEnoughBalanceException, SameAccountTransferException {
 
         final Account accountFrom = accountsRepository.getAccount(transfer.getAccountFromId());
         final Account accountTo = accountsRepository.getAccount(transfer.getAccountToId());
         final BigDecimal amount = transfer.getBalance();
 
-        transferValidator.validate(accountFrom, accountTo, transfer);
-        synchronized (Transfer.class) {
-            boolean succeeded = accountsRepository.updateAccounts(Arrays.asList(
-                    new AccountUpdate(accountFrom.getAccountId(), amount.negate()),
-                    new AccountUpdate(accountTo.getAccountId(), amount)
-            ));
+        if(accountFrom.getAccountId().compareTo(accountTo.getAccountId()) < 1){
+            synchronized (accountFrom){
+                synchronized (accountTo){
+                    transferValidator.validate(accountFrom, accountTo, transfer);
+                    boolean succeeded = accountsRepository.updateAccounts(Arrays.asList(
+                            new AccountUpdate(accountFrom.getAccountId(), amount.negate()),
+                            new AccountUpdate(accountTo.getAccountId(), amount)
+                    ));
+                    if (succeeded) {
+                        notificationService.notifyAboutTransfer(accountFrom, "Transfer for AccountId "
+                                + accountTo.getAccountId() + " is done with balance of " + transfer.getBalance());
+                        notificationService.notifyAboutTransfer(accountTo, "Transfer from AccountId + "
+                                + accountFrom.getAccountId() + "has done with balance of " + transfer.getBalance() + " in your account.");
+                    }
+                }
+            }
 
-
-            if (succeeded) {
-                notificationService.notifyAboutTransfer(accountFrom, "Transfer for AccountId "
-                        + accountTo.getAccountId() + " is done with balance of " + transfer.getBalance());
-                notificationService.notifyAboutTransfer(accountTo, "Transfer from AccountId + "
-                        + accountFrom.getAccountId() + "has done with balance of " + transfer.getBalance() + " in your account.");
+        } else {
+            synchronized (accountTo){
+                synchronized (accountFrom){
+                    transferValidator.validate(accountFrom, accountTo, transfer);
+                    boolean succeeded = accountsRepository.updateAccounts(Arrays.asList(
+                            new AccountUpdate(accountFrom.getAccountId(), amount.negate()),
+                            new AccountUpdate(accountTo.getAccountId(), amount)
+                    ));
+                    if (succeeded) {
+                        notificationService.notifyAboutTransfer(accountFrom, "Transfer for AccountId "
+                                + accountTo.getAccountId() + " is done with balance of " + transfer.getBalance());
+                        notificationService.notifyAboutTransfer(accountTo, "Transfer from AccountId + "
+                                + accountFrom.getAccountId() + "has done with balance of " + transfer.getBalance() + " in your account.");
+                    }
+                }
             }
         }
+
+
+
+
     }
 
 }
