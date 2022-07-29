@@ -2,8 +2,11 @@ package com.db.awmd.challenge.service;
 
 import com.db.awmd.challenge.domain.Account;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 @Slf4j
+@Service
 public class EmailNotificationService implements NotificationService {
 
   @Override
