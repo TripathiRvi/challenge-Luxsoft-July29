@@ -17,6 +17,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 
 import java.math.BigDecimal;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.fail;
@@ -107,6 +108,43 @@ public class AccountsServiceTest {
         assertThat(this.accountsService.getAccount(accountToId).getBalance()).isEqualTo(new BigDecimal("3000.00"));
 
         verifyNotifications(accountFrom, accountTo, transfer);
+    }
+
+    @Test
+    public void makeTransferOfFundsAsync() {
+        final String accountFromId = UUID.randomUUID().toString();
+        final String accountToId = UUID.randomUUID().toString();
+        final Account accountFrom = new Account(accountFromId, new BigDecimal("1000.00"));
+        final Account accountTo = new Account(accountToId, new BigDecimal("500.00"));
+
+        this.accountsService.createAccount(accountFrom);
+        this.accountsService.createAccount(accountTo);
+
+
+        Transfer transfer1 = new Transfer(accountFromId, accountToId, new BigDecimal("1000.00"));
+        Transfer transfer2 = new Transfer(accountToId, accountFromId, new BigDecimal("700.00"));
+
+                CompletableFuture.allOf(
+                        CompletableFuture.runAsync(()->{accountsService.makeTransfer(transfer1);}),
+                        CompletableFuture.runAsync(()->{accountsService.makeTransfer(transfer2);})
+                ).join();
+
+                System.out.println(accountFrom.getBalance());
+                System.out.println(accountTo.getBalance());
+
+
+        assertThat(this.accountsService.getAccount(accountFromId).getBalance()).isEqualTo(new BigDecimal("700.00"));
+        assertThat(this.accountsService.getAccount(accountToId).getBalance()).isEqualTo(new BigDecimal("800.00"));
+
+        verify(notificationService, Mockito.times(1)).notifyAboutTransfer(accountFrom,
+                "Transfer for AccountId " + accountTo.getAccountId() + " is done with balance of " + transfer1.getBalance() + ".");
+        verify(notificationService, Mockito.times(1)).notifyAboutTransfer(accountTo,
+                "Transfer for AccountId " + accountTo.getAccountId() + " is done with balance of " + transfer2.getBalance() + ".");
+        verify(notificationService, Mockito.times(1)).notifyAboutTransfer(accountFrom,
+                "Transfer for AccountId " + accountTo.getAccountId() + "has done with balance of " + transfer1.getBalance() + " in your account.");
+        verify(notificationService, Mockito.times(1)).notifyAboutTransfer(accountTo,
+                "Transfer for AccountId " + accountTo.getAccountId() + "has done with balance of " + transfer2.getBalance() + " in your account.");
+
     }
 
     @Test
